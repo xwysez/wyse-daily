@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wyse Daily — daily checklist &amp; streak tracker</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== AUTH: loading state while Firebase resolves the session ===== -->
+<div class="auth-screen" id="authLoading">
+  <div class="auth-spinner" aria-hidden="true"></div>
+</div>
+
+<!-- ===== AUTH: login screen ===== -->
+<div class="auth-screen" id="loginScreen" hidden>
+  <form class="login-card" id="loginForm">
+    <div class="brand login-brand">
+      <img src="logo.png" alt="Wyse Daily" class="brand-logo" onerror="this.style.display='none'">
+      <span class="brand-name">Wyse Daily</span>
+    </div>
+    <p class="login-sub">Sign in to continue</p>
+
+    <label class="field-label" for="loginEmail">Email</label>
+    <input type="email" id="loginEmail" class="field-input" autocomplete="username" required>
+
+    <label class="field-label" for="loginPassword">Password</label>
+    <input type="password" id="loginPassword" class="field-input" autocomplete="current-password" required>
+
+    <p class="login-error" id="loginError" hidden></p>
+
+    <button type="submit" class="btn btn-primary login-submit" id="loginSubmit">Log in</button>
+  </form>
+</div>
+
+<div class="app" id="app" hidden>
+
+  <!-- ===== SIDEBAR ===== -->
+  <nav class="sidebar" id="sidebar">
+    <div class="brand">
+      <img src="logo.png" alt="Wyse Daily" class="brand-logo" onerror="this.style.display='none'">
+      <span class="brand-name">Wyse Daily</span>
+    </div>
+
+    <button class="nav-item is-active" data-view="dashboard" type="button">
+      <svg viewBox="0 0 24 24" class="nav-icon"><rect x="3" y="3" width="4" height="4" rx="1" fill="currentColor"/><rect x="9" y="3" width="4" height="4" rx="1" fill="currentColor" opacity=".5"/><rect x="15" y="3" width="4" height="4" rx="1" fill="currentColor" opacity=".8"/><rect x="3" y="9" width="4" height="4" rx="1" fill="currentColor" opacity=".8"/><rect x="9" y="9" width="4" height="4" rx="1" fill="currentColor"/><rect x="15" y="9" width="4" height="4" rx="1" fill="currentColor" opacity=".5"/><rect x="3" y="15" width="4" height="4" rx="1" fill="currentColor" opacity=".5"/><rect x="9" y="15" width="4" height="4" rx="1" fill="currentColor" opacity=".8"/><rect x="15" y="15" width="4" height="4" rx="1" fill="currentColor"/></svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-item" data-view="focus" type="button">
+      <svg viewBox="0 0 24 24" class="nav-icon"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8" fill="none"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/></svg>
+      <span>Focus mode</span>
+    </button>
+    <button class="nav-item" data-view="calendar" type="button">
+      <svg viewBox="0 0 24 24" class="nav-icon"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Routine Calendar</span>
+    </button>
+    <button class="nav-item" data-view="events" type="button">
+      <svg viewBox="0 0 24 24" class="nav-icon"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 12.5l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>
+      <span>Event Calendar</span>
+    </button>
+    <button class="nav-item" data-view="stats" type="button">
+      <svg viewBox="0 0 24 24" class="nav-icon"><path d="M4 20V10M11 20V4M18 20v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Statistics</span>
+    </button>
+    <button class="nav-item" data-view="archive" type="button">
+      <svg viewBox="0 0 24 24" class="nav-icon"><rect x="3" y="4" width="18" height="4" rx="1" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M10 13h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Archive</span>
+    </button>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="streak-pill" id="sidebarStreak" title="Current streak">
+      <span class="streak-flame">◆</span>
+      <span id="sidebarStreakCount">0</span>
+      <span class="streak-label">day streak</span>
+    </div>
+
+    <button class="nav-item" id="openSettings" type="button">
+      <svg viewBox="0 0 24 24" class="nav-icon"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-1.7-1L15 3.6h-4l-.4 2.4a7.6 7.6 0 0 0-1.7 1l-2.3-.9-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.5 2 3.4 2.3-.9a7.6 7.6 0 0 0 1.7 1l.4 2.4h4l.4-2.4a7.6 7.6 0 0 0 1.7-1l2.3.9 2-3.4-2-1.5z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>
+      <span>Settings</span>
+    </button>
+
+    <button class="nav-item theme-toggle" id="themeToggle" type="button">
+      <svg viewBox="0 0 24 24" class="nav-icon" id="themeIcon"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.8" fill="none"/></svg>
+      <span id="themeLabel">Light mode</span>
+    </button>
+  </nav>
+
+  <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-label="Toggle menu">
+    <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main">
+
+    <!-- ---------- DASHBOARD VIEW (checklist + progress rail, side by side) ---------- -->
+    <section class="view is-active" id="view-dashboard">
+      <header class="view-header">
+        <div>
+          <p class="view-eyebrow">Today · <span id="todayDateLabel"></span></p>
+          <h1 class="view-title">Dashboard</h1>
+        </div>
+        <div class="header-actions">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" class="search-icon"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <input type="text" id="searchInput" placeholder="Search tasks… (/)" autocomplete="off">
+          </div>
+          <button class="btn btn-primary" id="openAddModal" type="button">+ New task</button>
+        </div>
+      </header>
+
+      <div class="dashboard-grid">
+        <!-- ---- checklist column ---- -->
+        <div class="dashboard-main">
+          <form class="quick-add" id="quickAddForm" autocomplete="off">
+            <span class="quick-add-dot" aria-hidden="true"></span>
+            <input type="text" id="quickAddInput" placeholder="Quick add a task and press Enter… (n)" autocomplete="off">
+          </form>
+
+          <div class="filter-row" id="filterRow">
+            <button class="chip is-active" data-filter-priority="all" type="button">All priorities</button>
+            <button class="chip" data-filter-priority="high" type="button">High</button>
+            <button class="chip" data-filter-priority="medium" type="button">Medium</button>
+            <button class="chip" data-filter-priority="low" type="button">Low</button>
+            <span class="filter-divider"></span>
+            <select class="chip chip-select" id="categoryFilter">
+              <option value="all">All categories</option>
+            </select>
+            <select class="chip chip-select" id="sortSelect">
+              <option value="manual">Manual order</option>
+              <option value="dueDate">Sort by deadline</option>
+              <option value="priority">Sort by priority</option>
+              <option value="created">Sort by date added</option>
+            </select>
+          </div>
+
+          <div class="checklist-groups" id="checklistGroups"></div>
+          <div class="empty-state" id="checklistEmpty" hidden>
+            <p class="empty-title">Nothing scheduled today</p>
+            <p class="empty-body">Add your first task above, or check Archive/Statistics for tasks scheduled on other days.</p>
+          </div>
+        </div>
+
+        <!-- ---- progress rail ---- -->
+        <aside class="dashboard-rail">
+          <div class="rail-stats">
+            <div class="rail-stat">
+              <p class="rail-stat-value" id="railToday">0%</p>
+              <p class="rail-stat-label">Today</p>
+            </div>
+            <div class="rail-stat">
+              <p class="rail-stat-value" id="railStreak">0</p>
+              <p class="rail-stat-label">Streak</p>
+            </div>
+            <div class="rail-stat">
+              <p class="rail-stat-value" id="railBest">0</p>
+              <p class="rail-stat-label">Best</p>
+            </div>
+            <div class="rail-stat">
+              <p class="rail-stat-value" id="railCompletedTotal">0</p>
+              <p class="rail-stat-label">All-time</p>
+            </div>
+          </div>
+
+          <div class="rail-card">
+            <p class="rail-card-title">This week</p>
+            <div class="weekly-chart" id="weeklyChart"></div>
+          </div>
+
+          <div class="rail-card rail-card-deadlines">
+            <p class="rail-card-title">Upcoming deadlines</p>
+            <div class="rail-focus-list rail-scroll" id="railDeadlineList"></div>
+            <p class="rail-empty" id="railDeadlineEmpty" hidden>No upcoming deadlines.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ---------- FOCUS VIEW ---------- -->
+    <section class="view" id="view-focus">
+      <div class="focus-header">
+        <p class="view-eyebrow focus-eyebrow">Only today matters</p>
+        <h1 class="view-title focus-title">Focus mode</h1>
+      </div>
+
+      <div class="focus-grid">
+        <div class="focus-tasks-col">
+          <p class="focus-sub" id="focusSub">0 of 0 done today</p>
+          <div class="focus-list" id="focusList"></div>
+          <div class="empty-state" id="focusEmpty" hidden>
+            <p class="empty-title">Clear runway</p>
+            <p class="empty-body">Nothing due or open for today. Add a task from the Checklist tab.</p>
+          </div>
+        </div>
+
+        <div class="focus-timer-col">
+          <div class="pomodoro-card" id="pomodoroRing">
+            <p class="pomodoro-mode" id="pomodoroMode">Focus session</p>
+            <p class="pomodoro-time" id="pomodoroTime">25:00</p>
+            <div class="pomodoro-controls">
+              <button class="btn btn-primary" id="pomodoroToggle" type="button">Start</button>
+              <button class="btn btn-ghost" id="pomodoroReset" type="button">Reset</button>
+            </div>
+            <div class="pomodoro-settings">
+              <label>Focus <input type="number" id="pomodoroWorkMinutes" min="1" max="120" value="25" autocomplete="off"> min</label>
+              <label>Break <input type="number" id="pomodoroBreakMinutes" min="1" max="60" value="5" autocomplete="off"> min</label>
+            </div>
+            <p class="pomodoro-sessions"><span id="pomodoroSessions">0</span> sessions completed today</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- CALENDAR VIEW ---------- -->
+    <section class="view" id="view-calendar">
+      <header class="view-header">
+        <div>
+          <p class="view-eyebrow">Scheduled tasks &amp; deadlines</p>
+          <h1 class="view-title">Routine Calendar</h1>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-ghost" id="calTodayBtn" type="button">Today</button>
+          <div class="year-nav">
+            <button class="icon-btn" id="calPrevMonth" type="button" aria-label="Previous month">‹</button>
+            <span id="calendarMonthLabel">August 2026</span>
+            <button class="icon-btn" id="calNextMonth" type="button" aria-label="Next month">›</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="cal-card">
+        <div class="cal-weekdays" id="calendarWeekdays"></div>
+        <div class="cal-grid" id="calendarGrid"></div>
+      </div>
+    </section>
+
+    <!-- ---------- EVENT CALENDAR VIEW ---------- -->
+    <section class="view" id="view-events">
+      <header class="view-header">
+        <div>
+          <p class="view-eyebrow">Birthdays, appointments &amp; one-time events</p>
+          <h1 class="view-title">Event Calendar</h1>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary" id="openAddEvent" type="button">+ New event</button>
+          <button class="btn btn-ghost" id="evtTodayBtn" type="button">Today</button>
+          <div class="year-nav">
+            <button class="icon-btn" id="evtPrevMonth" type="button" aria-label="Previous month">‹</button>
+            <span id="eventsMonthLabel">August 2026</span>
+            <button class="icon-btn" id="evtNextMonth" type="button" aria-label="Next month">›</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="cal-card">
+        <div class="cal-weekdays" id="eventsWeekdays"></div>
+        <div class="evt-grid" id="eventsGrid"></div>
+      </div>
+    </section>
+
+    <!-- ---------- STATS VIEW ---------- -->
+    <section class="view" id="view-stats">
+      <header class="view-header">
+        <div>
+          <p class="view-eyebrow">Progress history</p>
+          <h1 class="view-title">Statistics</h1>
+        </div>
+      </header>
+
+      <div class="stats-tracker-row">
+        <div class="tracker-card stats-tracker-card">
+          <div class="tracker-card-head">
+            <p class="tracker-card-title">Green light tracker</p>
+            <div class="trk-tabs">
+              <button class="trk-tab is-active" data-tracker-mode="month" type="button">Month</button>
+              <button class="trk-tab" data-tracker-mode="year" type="button">Year</button>
+            </div>
+          </div>
+
+          <div class="trk-nav-row">
+            <div class="year-nav" id="trackerMonthNavGroup">
+              <button class="icon-btn" id="prevTrackerMonth" type="button" aria-label="Previous month">‹</button>
+              <span id="trackerMonthLabel">August 2026</span>
+              <button class="icon-btn" id="nextTrackerMonth" type="button" aria-label="Next month">›</button>
+              <button class="btn btn-ghost trk-today-btn" id="trackerMonthTodayBtn" type="button">Today</button>
+            </div>
+            <div class="year-nav" id="trackerYearNavGroup" hidden>
+              <button class="icon-btn" id="prevYear" type="button" aria-label="Previous year">‹</button>
+              <span id="yearLabel">2026</span>
+              <button class="icon-btn" id="nextYear" type="button" aria-label="Next year">›</button>
+            </div>
+          </div>
+
+          <div class="trk-panel" id="trackerMonthPanel">
+            <div class="cal-weekdays" id="trackerMonthWeekdays"></div>
+            <div class="trk-grid" id="trackerMonthGrid"></div>
+          </div>
+
+          <div class="trk-panel" id="trackerYearPanel" hidden>
+            <div class="tracker-scroll">
+              <div class="tracker-grid" id="trackerGrid"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tracker-card stats-summary-card">
+          <div class="tracker-card-head">
+            <p class="tracker-card-title">Overview</p>
+          </div>
+          <div class="stats-summary-grid">
+            <div class="stat-cell">
+              <p class="stat-label">Current streak</p>
+              <p class="stat-value" id="statStreak">0</p>
+            </div>
+            <div class="stat-cell">
+              <p class="stat-label">Best streak</p>
+              <p class="stat-value" id="statBestStreak">0</p>
+            </div>
+            <div class="stat-cell">
+              <p class="stat-label">Weekly completion rate</p>
+              <p class="stat-value" id="statWeeklyRate">0%</p>
+            </div>
+            <div class="stat-cell">
+              <p class="stat-label">Monthly completion rate</p>
+              <p class="stat-value" id="statMonthlyRate">0%</p>
+            </div>
+            <div class="stat-cell">
+              <p class="stat-label">Active days this year</p>
+              <p class="stat-value" id="statActiveDays">0</p>
+            </div>
+            <div class="stat-cell">
+              <p class="stat-label">Completed this year</p>
+              <p class="stat-value" id="statCompletedTotal">0</p>
+            </div>
+            <div class="stat-cell">
+              <p class="stat-label">Completed all-time</p>
+              <p class="stat-value" id="statTotalCompletedAllTime">0</p>
+            </div>
+            <div class="stat-cell">
+              <p class="stat-label">Most productive day</p>
+              <p class="stat-value stat-value-text" id="statMostProductive">—</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-charts-row">
+        <div class="tracker-card stats-pie-card">
+          <div class="tracker-card-head">
+            <p class="tracker-card-title">Task categories</p>
+          </div>
+          <div class="pie-layout">
+            <div class="pie-chart-wrap">
+              <div class="pie-chart" id="completionPie">
+                <div class="pie-chart-center">
+                  <span id="completionPieCenter">0</span>
+                  <span class="pie-chart-center-label" id="completionPieCenterLabel">tasks</span>
+                </div>
+              </div>
+            </div>
+            <div class="pie-legend" id="completionPieLegend"></div>
+          </div>
+        </div>
+
+        <div class="tracker-card stats-trend-card">
+          <div class="tracker-card-head">
+            <p class="tracker-card-title">6-month trend</p>
+          </div>
+          <div class="trend-chart" id="trendChart"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- ARCHIVE VIEW ---------- -->
+    <section class="view" id="view-archive">
+      <header class="view-header">
+        <div>
+          <p class="view-eyebrow">Completed &amp; put away</p>
+          <h1 class="view-title">Archive</h1>
+        </div>
+      </header>
+      <div class="checklist-groups" id="archiveGroups"></div>
+      <div class="empty-state" id="archiveEmpty" hidden>
+        <p class="empty-title">Archive is empty</p>
+        <p class="empty-body">Archive completed tasks from the Checklist tab to tidy up your list without losing history.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===== ADD / EDIT MODAL ===== -->
+<div class="modal-overlay" id="itemModalOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <h2 id="modalTitle">New task</h2>
+      <button class="icon-btn" id="closeItemModal" type="button" aria-label="Close">×</button>
+    </div>
+    <form id="itemForm" autocomplete="off">
+      <input type="hidden" id="itemId">
+      <label class="field-label" for="itemText">Task</label>
+      <input type="text" id="itemText" class="field-input" placeholder="What needs doing?" autocomplete="off" required>
+
+      <div class="field-grid">
+        <div>
+          <label class="field-label" for="itemCategory">Category</label>
+          <input type="text" id="itemCategory" class="field-input" list="categoryList" placeholder="e.g. Work" autocomplete="off">
+          <datalist id="categoryList"></datalist>
+        </div>
+        <div>
+          <label class="field-label" for="itemPriority">Priority</label>
+          <select id="itemPriority" class="field-input">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-grid">
+        <div>
+          <label class="field-label" for="itemDueDate">Due date <span class="field-optional">(optional)</span></label>
+          <input type="date" id="itemDueDate" class="field-input" autocomplete="off">
+        </div>
+        <div id="repeatFieldWrap">
+          <label class="field-label" for="itemRecurring">Repeats</label>
+          <select id="itemRecurring" class="field-input">
+            <option value="">Never</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="scheduleFieldWrap">
+        <label class="field-label" for="itemSchedule">Scheduled days</label>
+        <select id="itemSchedule" class="field-input">
+          <option value="daily" selected>Every day</option>
+          <option value="weekdays">Weekdays (Mon–Fri)</option>
+          <option value="weekends">Weekends (Sat–Sun)</option>
+          <option value="custom">Custom days…</option>
+        </select>
+        <div class="day-picker" id="customDaysPicker" hidden>
+          <label class="day-chip"><input type="checkbox" value="1"><span>Mon</span></label>
+          <label class="day-chip"><input type="checkbox" value="2"><span>Tue</span></label>
+          <label class="day-chip"><input type="checkbox" value="3"><span>Wed</span></label>
+          <label class="day-chip"><input type="checkbox" value="4"><span>Thu</span></label>
+          <label class="day-chip"><input type="checkbox" value="5"><span>Fri</span></label>
+          <label class="day-chip"><input type="checkbox" value="6"><span>Sat</span></label>
+          <label class="day-chip"><input type="checkbox" value="0"><span>Sun</span></label>
+        </div>
+      </div>
+      <p class="field-hint" id="oneTimeHint" hidden>This task has a due date, so it's one-time and won't repeat on other days.</p>
+
+      <label class="pin-field">
+        <input type="checkbox" id="itemPinned">
+        <span>Pin to Today's Focus</span>
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="deleteItemBtn" hidden>Delete</button>
+        <div class="modal-actions-right">
+          <button type="button" class="btn btn-ghost" id="cancelItemModal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save task</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== DAY DETAIL MODAL ===== -->
+<div class="modal-overlay" id="dayModalOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dayModalTitle">
+    <div class="modal-header">
+      <h2 id="dayModalTitle">Day detail</h2>
+      <button class="icon-btn" id="closeDayModal" type="button" aria-label="Close">×</button>
+    </div>
+    <p class="day-modal-sub" id="dayModalSub"></p>
+    <div class="day-modal-list" id="dayModalList"></div>
+  </div>
+</div>
+
+<!-- ===== CALENDAR DAY MODAL ===== -->
+<div class="modal-overlay" id="calendarDayModalOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="calDayModalTitle">
+    <div class="modal-header">
+      <h2 id="calDayModalTitle">Day detail</h2>
+      <button class="icon-btn" id="closeCalDayModal" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="day-modal-list" id="calDayModalList"></div>
+  </div>
+</div>
+
+<!-- ===== EVENT DAY MODAL ===== -->
+<div class="modal-overlay" id="eventDayModalOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="eventDayModalTitle">
+    <div class="modal-header">
+      <h2 id="eventDayModalTitle">Day detail</h2>
+      <button class="icon-btn" id="closeEventDayModal" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="evt-row-list" id="eventDayModalList"></div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right">
+        <button type="button" class="btn btn-primary" id="addEventForDay">+ Add event for this day</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADD / EDIT EVENT MODAL ===== -->
+<div class="modal-overlay" id="eventModalOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle">
+    <div class="modal-header">
+      <h2 id="eventModalTitle">New event</h2>
+      <button class="icon-btn" id="closeEventModal" type="button" aria-label="Close">×</button>
+    </div>
+    <form id="eventForm" autocomplete="off">
+      <label class="field-label" for="eventTitle">Title</label>
+      <input type="text" id="eventTitle" class="field-input" placeholder="e.g. Mom's birthday" autocomplete="off" required>
+
+      <div class="field-grid">
+        <div>
+          <label class="field-label" for="eventDate">Date</label>
+          <input type="date" id="eventDate" class="field-input" autocomplete="off" required>
+        </div>
+        <div>
+          <label class="field-label" for="eventTime">Time <span class="field-optional">(optional)</span></label>
+          <input type="time" id="eventTime" class="field-input" autocomplete="off">
+        </div>
+      </div>
+
+      <label class="field-label" for="eventCategory">Category <span class="field-optional">(optional)</span></label>
+      <input type="text" id="eventCategory" class="field-input" placeholder="e.g. Birthday, Appointment, Exam" autocomplete="off">
+
+      <label class="field-label">Color</label>
+      <div class="tracker-palette" id="eventColorPicker">
+        <button class="swatch evt-swatch-blue is-active" data-color="blue" type="button" aria-label="Blue"></button>
+        <button class="swatch evt-swatch-green" data-color="green" type="button" aria-label="Green"></button>
+        <button class="swatch evt-swatch-amber" data-color="amber" type="button" aria-label="Amber"></button>
+        <button class="swatch evt-swatch-red" data-color="red" type="button" aria-label="Red"></button>
+        <button class="swatch evt-swatch-violet" data-color="violet" type="button" aria-label="Violet"></button>
+        <button class="swatch evt-swatch-gray" data-color="gray" type="button" aria-label="Gray"></button>
+      </div>
+      <input type="hidden" id="eventColorInput" value="blue">
+
+      <label class="field-label" for="eventDescription">Description <span class="field-optional">(optional)</span></label>
+      <textarea id="eventDescription" class="field-input evt-textarea" rows="3" placeholder="Any notes about this event…" autocomplete="off"></textarea>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="deleteEventBtn" hidden>Delete</button>
+        <div class="modal-actions-right">
+          <button type="button" class="btn btn-ghost" id="cancelEventModal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save event</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== SETTINGS MODAL ===== -->
+<div class="modal-overlay" id="settingsModalOverlay">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+    <div class="modal-header">
+      <h2 id="settingsModalTitle">Settings</h2>
+      <button class="icon-btn" id="closeSettings" type="button" aria-label="Close">×</button>
+    </div>
+
+    <div class="settings-section">
+      <p class="settings-heading">Account</p>
+      <p class="account-email" id="accountEmail">—</p>
+      <p class="sync-status" id="syncStatus"></p>
+      <button class="btn btn-ghost settings-danger" id="logoutBtn" type="button">Log out</button>
+    </div>
+
+    <div class="settings-section">
+      <p class="settings-heading">Appearance</p>
+
+      <label class="field-label">Theme</label>
+      <div class="radio-row">
+        <label class="radio-chip"><input type="radio" name="themeMode" value="light"><span>Light</span></label>
+        <label class="radio-chip"><input type="radio" name="themeMode" value="dark"><span>Dark</span></label>
+        <label class="radio-chip"><input type="radio" name="themeMode" value="system"><span>System</span></label>
+      </div>
+
+      <label class="field-label">Accent color</label>
+      <div class="tracker-palette" id="settingsColorSwatches">
+        <button class="swatch swatch-green is-active" data-palette="green" type="button" aria-label="Green"></button>
+        <button class="swatch swatch-blue" data-palette="blue" type="button" aria-label="Blue"></button>
+        <button class="swatch swatch-amber" data-palette="amber" type="button" aria-label="Amber"></button>
+        <button class="swatch swatch-violet" data-palette="violet" type="button" aria-label="Violet"></button>
+      </div>
+
+      <div class="field-grid">
+        <div>
+          <label class="field-label" for="settingFontSize">Font size</label>
+          <select id="settingFontSize" class="field-input">
+            <option value="small">Small</option>
+            <option value="medium" selected>Medium</option>
+            <option value="large">Large</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label" for="settingFirstDay">First day of week</label>
+          <select id="settingFirstDay" class="field-input">
+            <option value="0" selected>Sunday</option>
+            <option value="1">Monday</option>
+          </select>
+        </div>
+      </div>
+
+      <label class="pin-field"><input type="checkbox" id="settingCompactMode"><span>Compact mode</span></label>
+      <label class="pin-field"><input type="checkbox" id="settingAnimations" checked><span>Enable animations</span></label>
+    </div>
+
+    <div class="settings-section">
+      <p class="settings-heading">Tasks</p>
+      <div class="field-grid">
+        <div>
+          <label class="field-label" for="settingDateFormat">Date format</label>
+          <select id="settingDateFormat" class="field-input">
+            <option value="short">Aug 2</option>
+            <option value="numeric-mdy">08/02/2026</option>
+            <option value="numeric-dmy">02/08/2026</option>
+            <option value="iso">2026-08-02</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label" for="settingDefaultSort">Default sorting</label>
+          <select id="settingDefaultSort" class="field-input">
+            <option value="manual">Manual order</option>
+            <option value="dueDate">Deadline</option>
+            <option value="priority">Priority</option>
+            <option value="created">Date added</option>
+          </select>
+        </div>
+      </div>
+      <label class="pin-field"><input type="checkbox" id="settingHideCompleted"><span>Hide completed tasks by default</span></label>
+    </div>
+
+    <div class="settings-section">
+      <p class="settings-heading">Your data</p>
+      <div class="settings-data-actions">
+        <button class="btn btn-ghost" id="exportDataBtn" type="button">Export data as JSON</button>
+        <label class="btn btn-ghost" for="importDataInput">Import data from JSON</label>
+        <input type="file" id="importDataInput" accept="application/json" hidden>
+        <button class="btn btn-ghost settings-danger" id="resetDataBtn" type="button">Reset all data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="trackerTooltip"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="auth.js"></script>
+<script src="utils.js"></script>
+<script src="storage.js"></script>
+<script src="checklist.js"></script>
+<script src="tracker.js"></script>
+<script src="calendar.js"></script>
+<script src="events.js"></script>
+<script src="pomodoro.js"></script>
+<script src="settings.js"></script>
+<script src="firebase-sync.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
